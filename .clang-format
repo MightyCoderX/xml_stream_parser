@@ -1,0 +1,43 @@
+# Common settings
+BasedOnStyle: WebKit
+TabWidth: 4
+IndentWidth: 4
+UseTab: Never
+ColumnLimit: 80
+
+# http://releases.llvm.org/6.0.1/tools/clang/docs/ClangFormatStyleOptions.html#disabling-formatting-on-a-piece-of-code
+# int formatted_code;
+# // clang-format off
+#     void    unformatted_code  ;
+# // clang-format on
+# void formatted_code_again;
+
+DisableFormat: false
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+  AfterControlStatement: true
+  BeforeElse: true
+
+PointerAlignment: Left
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatementsExceptControlMacros
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 1
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: WithoutElse
+
+SortIncludes: false
+IncludeBlocks: Preserve
+
+# Comments are for developers, they should arrange them
+ReflowComments: false
+
+AlignArrayOfStructures: Right
+AlignEscapedNewlines: LeftWithLastLine
+AllowAllArgumentsOnNextLine: false
+# BinPackArguments: false # one arg per line in function call
+BreakBeforeBinaryOperators: None

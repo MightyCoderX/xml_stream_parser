@@ -48,7 +48,7 @@ static char* state_to_str(ParserState state)
     case CTAG:
         return "CTAG";
     case INTAG:
-        return "INGAG";
+        return "INTAG";
     }
 
     return "UNKNOWN";

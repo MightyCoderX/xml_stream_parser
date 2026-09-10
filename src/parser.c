@@ -499,17 +499,15 @@ void xsp_parse_file(FILE* file)
                 e.name[0] = '\0';
                 // text between an opening tag and a opening/closing tag (es. "<p>lol<span>a</span></p>" -> lol)
 
-                if (text != NULL)
-                {
-                    free(text);
-                    text = NULL;
-                }
-
                 text = strdup(trim(parser.token));
                 if (strcmp(text, "") != 0)
                 {
                     on_text(text);
                 }
+
+                free(text);
+                text = NULL;
+
                 tok_pop(NULL, 0);
 
                 char nc = next_char();
@@ -555,8 +553,6 @@ void xsp_parse_file(FILE* file)
 
                 on_close_tag(closing_tag);
 
-                free(text);
-                text = NULL;
                 free(closing_tag);
                 closing_tag = NULL;
                 free(opening_tag);

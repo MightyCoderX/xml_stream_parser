@@ -54,11 +54,8 @@ static char* state_to_str(ParserState state)
     return "UNKNOWN";
 }
 
-static void next_chunk()
 static char* char_to_literal(unsigned char c)
 {
-    fread(parser.buf, sizeof(parser.buf), 1, parser.file);
-    parser.bufidx = 0;
     size_t size = 5;
     char* str = malloc(size);
 
@@ -112,11 +109,30 @@ static void print_repr(char* str, long start, long len)
     fflush(stderr);
 }
 
+static void buf_seek(long amount)
+{
+    long newidx = parser.bufidx + amount;
+    if (newidx < 0 || newidx > (long)sizeof(parser.buf) - 1)
+    {
+        if (newidx < 0)
+        {
+            parser.bufidx = 0;
+            fseek(parser.file, amount, SEEK_CUR);
+        }
+        fread(parser.buf, sizeof(parser.buf), 1, parser.file);
+        parser.bufidx = 0;
+    }
+    else
+    {
+        parser.bufidx += amount;
+    }
+}
+
 static char next_char()
 {
     if (parser.bufidx == sizeof(parser.buf) - 1)
     {
-        next_chunk();
+        buf_seek(1);
     }
 
     char c = parser.buf[parser.bufidx++];
@@ -149,9 +165,8 @@ static void tok_addc(char c)
         parser.token = newtoken;
     }
 
-    INFO("tok_addc: %c (%d)\n", c, c);
-
     parser.token[parser.toksize++] = c;
+    parser.token[parser.toksize] = '\0';
 }
 
 static void tok_pop(char* out, size_t size)
@@ -190,25 +205,69 @@ static Attribute* attr_add(Element* e, char* name, char* value)
     return attr;
 }
 
+static void free_attrs(Attribute* attrs)
+{
+    while (attrs != NULL)
+    {
+        Attribute* next = attrs->next;
+        free(attrs);
+        attrs = next;
+    }
+}
+
 static bool is_identifier(char c)
 {
     return isalpha(c) || c == '_' || c == '-';
 }
 
+static char* trim_left(char* str)
+{
+    while (isspace(*(str++)))
+        ;
+
+    return --str;
+}
+
+static char* trim_right(char* str)
+{
+    size_t len = strlen(str);
+
+    for (long i = len - 1; i >= 0; i--)
+    {
+        if (!isspace(str[i]))
+        {
+            str[i + 1] = '\0';
+            break;
+        }
+    }
+    return str;
+}
+
+static char* trim(char* str)
+{
+    return trim_right(trim_left(str));
+}
+
 void xsp_parser_init(void)
 {
-    parser.token = malloc(parser.tokcap);
+    parser.token = calloc(1, parser.tokcap);
+}
+
+static void change_state(ParserState next)
+{
+    INFO("state: %s -> %s\n", state_to_str(parser.state), state_to_str(next));
+
+    parser.state = next;
 }
 
 void xsp_parse_file(FILE* file)
 {
     parser.file = file;
-    next_chunk();
-
-    ParserState prev = DECL;
+    fread(parser.buf, sizeof(parser.buf), 1, parser.file);
 
     Element e = { 0 };
     Attribute* attr = NULL;
+    char* text = NULL;
     char c;
     while ((c = next_char()) != EOF)
     {
@@ -244,7 +303,7 @@ void xsp_parse_file(FILE* file)
                     if (strcmp(parser.token,
                             "xml version=\"1.0\" encoding=\"UTF-8\"?") == 0)
                     {
-                        parser.state = OUT;
+                        change_state(OUT);
                         tok_pop(NULL, 0);
                         on_document_start();
                     }
@@ -266,9 +325,9 @@ void xsp_parse_file(FILE* file)
         case ROOT:
             if (c == '<')
             {
-                parser.state = OTAG;
+                change_state(OTAG);
             }
-            else if (c == '\n' || c == ' ')
+            else if (isspace(c))
             {
                 // ignore
             }
@@ -281,11 +340,29 @@ void xsp_parse_file(FILE* file)
         case OUT:
             if (c == '<')
             {
-                parser.state = OTAG;
+                char nc = next_char();
+                if (nc == '/')
+                {
+                    change_state(CTAG);
+                }
+                else if (is_identifier(nc))
+                {
+                    tok_addc(nc);
+                    change_state(OTAG);
+                }
+                else
+                {
+                    EXPECT("[A-Za-z_\\-]", nc);
+                    return;
+                }
             }
-            else if (c == '\n' || c == ' ')
+            else if (isspace(c))
             {
                 // ignore
+            }
+            else if (c == '\0')
+            {
+                return;
             }
             else
             {
@@ -296,17 +373,24 @@ void xsp_parse_file(FILE* file)
         case OTAG:
             if (c == '>')
             {
-                tok_pop(e.name, sizeof(e.name));
+                if (strlen(e.name) == 0)
+                {
+                    tok_pop(e.name, sizeof(e.name));
+                }
+                change_state(INTAG);
                 on_open_tag(e);
-                parser.state = INTAG;
+                skip_spaces();
+                free_attrs(e.attributes);
+                e.attributes = NULL;
             }
             else if (is_identifier(c))
             {
                 tok_addc(c);
             }
-            else if (c == ' ')
+            else if (isspace(c))
             {
-                parser.state = ATTRNAME;
+                tok_pop(e.name, sizeof(e.name));
+                change_state(ATTRNAME);
                 skip_spaces();
             }
             else
@@ -324,22 +408,27 @@ void xsp_parse_file(FILE* file)
                 char nc = next_char();
                 if (nc == '"')
                 {
-                    prev = parser.state;
-                    parser.state = INQUOTES;
+                    change_state(INQUOTES);
                 }
                 else
                 {
                     parser.bufidx--;
-                    parser.state = ATTRVALUE;
+                    change_state(ATTRVALUE);
                 }
             }
             else if (isspace(c))
             {
-                // ignore
+                attr = attr_add(&e, NULL, NULL);
+                tok_pop(attr->name, sizeof(attr->name));
             }
-            else if (c != '>')
+            else if (is_identifier(c))
             {
                 tok_addc(c);
+            }
+            else if (c == '>')
+            {
+                buf_seek(-1);
+                change_state(OTAG);
             }
             else
             {
@@ -354,40 +443,59 @@ void xsp_parse_file(FILE* file)
             }
             else
             {
-                parser.state = prev;
+                change_state(ATTRVALUE);
             }
             break;
         case ATTRVALUE:
             if (c == ' ')
             {
                 tok_pop(attr->value, sizeof(attr->value));
+                change_state(OTAG);
             }
             else if (c != '>' && c != '\n')
             {
                 tok_addc(c);
             }
+            else if (c == '>')
+            {
+                tok_pop(attr->value, sizeof(attr->value));
+                buf_seek(-1);
+                change_state(OTAG);
+            }
             else
             {
-                parser.state = INTAG;
+                EXPECT(" ' ', '>' or '\n'", c);
             }
             break;
         case INTAG:
             if (c == '<')
             {
-                char* text = malloc(parser.toksize + 1);
-                tok_pop(text, parser.toksize);
-                on_text(text);
+                e.name[0] = '\0';
+                // text between an opening tag and a opening/closing tag (es. "<p>lol<span>a</span></p>" -> lol)
+
+                if (text != NULL)
+                {
+                    free(text);
+                    text = NULL;
+                }
+
+                text = strdup(trim(parser.token));
+                if (strcmp(text, "") != 0)
+                {
+                    on_text(text);
+                }
+                tok_pop(NULL, 0);
 
                 char nc = next_char();
                 if (nc == '/')
                 {
-                    parser.state = CTAG;
-                    e = (Element) { 0 };
+                    change_state(CTAG);
                 }
-                else if (is_identifier(nc))
+                // not is_identifier since an identifier must start with a letter
+                else if (isalpha(nc))
                 {
-                    parser.state = OTAG;
                     tok_addc(nc);
+                    change_state(OTAG);
                 }
                 else
                 {
@@ -407,7 +515,29 @@ void xsp_parse_file(FILE* file)
             }
             else if (c == '>')
             {
-                parser.state = OUT;
+                change_state(OUT);
+
+                char* closing_tag = malloc(strlen(parser.token) + 1);
+
+                tok_pop(closing_tag, strlen(parser.token));
+
+                if (strncmp(closing_tag, e.name, strlen(e.name)) != 0)
+                {
+                    ERROR("trying to close tag %s with %s\n", e.name,
+                        closing_tag);
+                    return;
+                }
+
+                on_close_tag(closing_tag);
+                free(closing_tag);
+
+                free(text);
+                text = NULL;
+
+                free_attrs(e.attributes);
+                e.attributes = NULL;
+
+                e = (Element) { 0 };
             }
             else
             {

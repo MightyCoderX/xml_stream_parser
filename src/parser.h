@@ -48,7 +48,7 @@ void xsp_parse_file(FILE* file);
 
 void on_document_start(void);
 void on_open_tag(Element element);
-void on_close_tag(Element element);
+void on_close_tag(char* tag_name);
 void on_text(char* string);
 
 #endif

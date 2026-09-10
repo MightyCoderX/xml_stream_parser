@@ -2,9 +2,9 @@ SRC := src
 BUILD := build
 
 CC ?= gcc
-CFLAGS := -std=c99 -Wall -Wextra -pedantic
+CFLAGS := -std=gnu99 -Wall -Wextra -pedantic
 LDFLAGS := -fsanitize=undefined,address
-LIBS := #-lpthread
+LIBS := -lm
 
 SRCS := $(wildcard $(SRC)/*.c)
 OBJS := $(patsubst $(SRC)/%.c, $(BUILD)/%.o, $(SRCS))
@@ -25,7 +25,7 @@ check: $(TARGET)
 	valgrind -s ./$<
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) $(LIBS) $^ -o $@
 
 $(BUILD)/%.o: $(SRC)/%.c | $(BUILD)
 	$(CC) $(CFLAGS) -c $^ -o $@

@@ -20,9 +20,9 @@ void on_open_tag(Element element)
     fflush(stdout);
 }
 
-void on_close_tag(Element element)
+void on_close_tag(char* tag_name)
 {
-    printf("element closed: %s\n", element.name);
+    printf("element closed: %s\n\n", tag_name);
     fflush(stdout);
 }
 

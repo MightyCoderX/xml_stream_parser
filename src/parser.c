@@ -294,7 +294,7 @@ void xsp_parse_file(FILE* file)
     char* opening_tag = NULL;
 
     char c;
-    while ((c = next_char()) != EOF)
+    while ((c = next_char()) != EOF && c != '\0')
     {
         INFO("------ BEFORE SWITCH -------\n");
         char* lit = char_to_literal(c);
@@ -384,10 +384,6 @@ void xsp_parse_file(FILE* file)
             else if (isspace(c))
             {
                 // ignore
-            }
-            else if (c == '\0')
-            {
-                return;
             }
             else
             {

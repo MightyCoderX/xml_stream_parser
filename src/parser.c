@@ -290,6 +290,7 @@ void xsp_parse_file(FILE* file)
     Element e = { 0 };
     Attribute* attr = NULL;
     char* text = NULL;
+    char* closing_tag = NULL;
     char* opening_tag = NULL;
 
     char c;
@@ -336,14 +337,14 @@ void xsp_parse_file(FILE* file)
                 {
                     ERROR("invalid xml declaration, ");
                     EXPECT("?", nc);
-                    return;
+                    goto cleanup;
                 }
             }
             else
             {
                 ERROR("invalid xml declaration, ");
                 EXPECT("<", c);
-                return;
+                goto cleanup;
             }
             break;
         case ROOT:
@@ -358,7 +359,7 @@ void xsp_parse_file(FILE* file)
             else
             {
                 EXPECT("<", c);
-                return;
+                goto cleanup;
             }
             break;
         case OUT:
@@ -377,7 +378,7 @@ void xsp_parse_file(FILE* file)
                 else
                 {
                     EXPECT("[A-Za-z_\\-]", nc);
-                    return;
+                    goto cleanup;
                 }
             }
             else if (isspace(c))
@@ -540,7 +541,7 @@ void xsp_parse_file(FILE* file)
             }
             else if (c == '>')
             {
-                char* closing_tag = malloc(strlen(parser.token) + 1);
+                closing_tag = malloc(strlen(parser.token) + 1);
                 tok_pop(closing_tag, strlen(parser.token));
 
                 opening_tag = otag_pop();
@@ -549,14 +550,15 @@ void xsp_parse_file(FILE* file)
                 {
                     ERROR("trying to close tag '%s' with '%s'\n", opening_tag,
                         closing_tag);
-                    return;
+                    goto cleanup;
                 }
 
                 on_close_tag(closing_tag);
-                free(closing_tag);
 
                 free(text);
                 text = NULL;
+                free(closing_tag);
+                closing_tag = NULL;
                 free(opening_tag);
                 opening_tag = NULL;
 
@@ -575,4 +577,10 @@ void xsp_parse_file(FILE* file)
             break;
         }
     }
+
+cleanup:
+    free(text);
+    free(closing_tag);
+    free(opening_tag);
+    free_attrs(e.attributes);
 }

@@ -25,6 +25,7 @@ static Parser parser = {
     .tokcap = 128,
     .line = 0,
     .column = 0,
+    .otag_stack = NULL,
 };
 
 static char* state_to_str(ParserState state)
@@ -253,6 +254,27 @@ void xsp_parser_init(void)
     parser.token = calloc(1, parser.tokcap);
 }
 
+static void otag_push(char* tagname)
+{
+    TagNameNode* new = malloc(sizeof(TagNameNode));
+    new->tagname = strdup(tagname);
+
+    TagNameNode* head = parser.otag_stack;
+    parser.otag_stack = new;
+    new->next = head;
+}
+
+static char* otag_pop()
+{
+    char* tagname = parser.otag_stack->tagname;
+    TagNameNode* next = parser.otag_stack->next;
+
+    free(parser.otag_stack);
+    parser.otag_stack = next;
+
+    return tagname;
+}
+
 static void change_state(ParserState next)
 {
     INFO("state: %s -> %s\n", state_to_str(parser.state), state_to_str(next));
@@ -268,6 +290,8 @@ void xsp_parse_file(FILE* file)
     Element e = { 0 };
     Attribute* attr = NULL;
     char* text = NULL;
+    char* opening_tag = NULL;
+
     char c;
     while ((c = next_char()) != EOF)
     {
@@ -378,6 +402,7 @@ void xsp_parse_file(FILE* file)
                     tok_pop(e.name, sizeof(e.name));
                 }
                 change_state(INTAG);
+                otag_push(e.name);
                 on_open_tag(e);
                 skip_spaces();
                 free_attrs(e.attributes);
@@ -515,15 +540,14 @@ void xsp_parse_file(FILE* file)
             }
             else if (c == '>')
             {
-                change_state(OUT);
-
                 char* closing_tag = malloc(strlen(parser.token) + 1);
-
                 tok_pop(closing_tag, strlen(parser.token));
 
-                if (strncmp(closing_tag, e.name, strlen(e.name)) != 0)
+                opening_tag = otag_pop();
+
+                if (strncmp(closing_tag, opening_tag, strlen(opening_tag)) != 0)
                 {
-                    ERROR("trying to close tag %s with %s\n", e.name,
+                    ERROR("trying to close tag '%s' with '%s'\n", opening_tag,
                         closing_tag);
                     return;
                 }
@@ -533,11 +557,15 @@ void xsp_parse_file(FILE* file)
 
                 free(text);
                 text = NULL;
+                free(opening_tag);
+                opening_tag = NULL;
 
                 free_attrs(e.attributes);
                 e.attributes = NULL;
 
                 e = (Element) { 0 };
+
+                change_state(OUT);
             }
             else
             {

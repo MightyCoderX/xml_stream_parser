@@ -20,6 +20,13 @@ typedef enum {
     INTAG,
 } ParserState;
 
+typedef struct TagNameNode TagNameNode;
+
+struct TagNameNode {
+    char* tagname;
+    TagNameNode* next;
+};
+
 typedef struct {
     ParserState state;
     FILE* file;
@@ -30,6 +37,7 @@ typedef struct {
     char* token;
     size_t line;
     size_t column;
+    TagNameNode* otag_stack;
 } Parser;
 
 struct Attribute {

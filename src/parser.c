@@ -55,9 +55,61 @@ static char* state_to_str(ParserState state)
 }
 
 static void next_chunk()
+static char* char_to_literal(unsigned char c)
 {
     fread(parser.buf, sizeof(parser.buf), 1, parser.file);
     parser.bufidx = 0;
+    size_t size = 5;
+    char* str = malloc(size);
+
+    switch (c)
+    {
+    case '\n':
+        strcpy(str, "\\n");
+        break;
+    case '\t':
+        strcpy(str, "\\t");
+        break;
+    case '\\':
+        strcpy(str, "\\\\");
+        break;
+    case '"':
+        strcpy(str, "\\\"");
+        break;
+    case '\0':
+        strcpy(str, "\\0");
+        break;
+    default:
+        if (isprint(c))
+        {
+            snprintf(str, size, "%c", c);
+        }
+        else
+        {
+            snprintf(str, size, "\\x%02x", (int)c);
+        }
+        break;
+    }
+    return str;
+}
+
+static void print_repr(char* str, long start, long len)
+{
+    if (len == -1)
+    {
+        len = strlen(str) - start;
+    }
+
+    putc('"', stderr);
+    for (unsigned char* c = (unsigned char*)&str[start];
+        c < (unsigned char*)&str[start] + len; c++)
+    {
+        char* lit = char_to_literal(*c);
+        INFO("%s", lit);
+        free(lit);
+    }
+    putc('"', stderr);
+    fflush(stderr);
 }
 
 static char next_char()
@@ -160,11 +212,20 @@ void xsp_parse_file(FILE* file)
     char c;
     while ((c = next_char()) != EOF)
     {
-        INFO("c: '%c' (%d)\n", c, c);
-        INFO("buf: %.20s\n", &parser.buf[parser.bufidx]);
+        INFO("------ BEFORE SWITCH -------\n");
+        char* lit = char_to_literal(c);
+        INFO("c: '%s' (%d)\n", lit, c);
+        free(lit);
+        INFO("buf: ");
+        print_repr(parser.buf, parser.bufidx - 1, 20);
+        INFO("\n");
         INFO("bufidx: %zu\n", parser.bufidx);
-        INFO("token: %.*s\n", (int)parser.toksize, parser.token);
+        INFO("token: ");
+        print_repr(parser.token, 0, -1);
+        INFO("\n");
         INFO("state: %s\n", state_to_str(parser.state));
+        INFO("\n");
+
         switch (parser.state)
         {
         case DECL:

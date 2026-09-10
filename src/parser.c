@@ -120,7 +120,12 @@ static void buf_seek(long amount)
             parser.bufidx = 0;
             fseek(parser.file, amount, SEEK_CUR);
         }
-        fread(parser.buf, sizeof(parser.buf), 1, parser.file);
+        size_t nbytes = fread(parser.buf, 1, sizeof(parser.buf), parser.file);
+
+        if (feof(parser.file) || ferror(parser.file))
+        {
+            parser.buf[nbytes - 1] = EOF;
+        }
         parser.bufidx = 0;
     }
     else

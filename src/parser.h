@@ -5,6 +5,8 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#define XSP_BUFSIZ 4096
+
 typedef struct Attribute Attribute;
 typedef struct Element Element;
 
@@ -33,7 +35,7 @@ typedef struct {
     size_t bufidx;
     size_t toksize;
     size_t tokcap;
-    char buf[4096];
+    char buf[XSP_BUFSIZ];
     char* token;
     size_t line;
     size_t column;

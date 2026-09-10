@@ -34,6 +34,12 @@ void on_text(char* string)
 
 int main(int argc, char** argv)
 {
+    if (argc < 2)
+    {
+        fprintf(stderr, "usage: %s <filename>\n", argv[0]);
+        return 1;
+    }
+
     FILE* file = fopen(argv[1], "r");
     if (!file)
     {

@@ -383,7 +383,7 @@ void xsp_parse_file(FILE* file)
             }
             else if (isspace(c))
             {
-                // ignore
+                skip_spaces();
             }
             else
             {

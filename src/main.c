@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "parser.h"
 
@@ -21,7 +20,6 @@ void on_close_tag(Element element)
 void on_text(char* string)
 {
     printf("text: %s\n", string);
-    free(string);
 }
 
 int main(int argc, char** argv)

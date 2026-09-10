@@ -10,8 +10,8 @@
 #include "parser.h"
 
 #define INFO(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
-#define ERROR(fmt, ...)                                                \
-    fprintf(stderr, "line %zu:%zu %s: " fmt, parser.line + 1,          \
+#define ERROR(fmt, ...)                                                     \
+    fprintf(stderr, "Error on line %zu:%zu (in %s): " fmt, parser.line + 1, \
         parser.column + 1, state_to_str(parser.state), ##__VA_ARGS__);
 
 #define EXPECT(exp, got) ERROR("expected '%s' got '%c' (%d)\n", exp, got, got)

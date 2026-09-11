@@ -223,7 +223,7 @@ static void free_attrs(Attribute* attrs)
 
 static bool is_identifier(char c)
 {
-    return isalpha(c) || c == '_' || c == '-';
+    return isalnum(c) || c == '_' || c == '-';
 }
 
 static char* trim_left(char* str)

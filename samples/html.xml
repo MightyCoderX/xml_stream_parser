@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h1>W3Schools Internal Note</h1>
+<div>
+<b>To:</b> <span id="to"></span><br></br>
+<b>From:</b> <span id="from"></span><br></br>
+<b>Message:</b> <span id="message"></span>
+</div>
+
+</body>
+</html>

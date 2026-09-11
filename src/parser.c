@@ -338,6 +338,22 @@ void xsp_parse_file(FILE* file)
                         on_document_start();
                     }
                 }
+                else if (nc == '!')
+                {
+                    while ((nc = next_char()) != '>')
+                    {
+                        tok_addc(nc);
+                    }
+
+                    parser.token[parser.toksize] = '\0';
+
+                    if (strcmp(parser.token, "DOCTYPE html") == 0)
+                    {
+                        change_state(OUT);
+                        tok_pop(NULL, 0);
+                        on_document_start();
+                    }
+                }
                 else
                 {
                     ERROR("invalid xml declaration, ");
